@@ -14,39 +14,56 @@ Can a browser-based medical-image viewer achieve the required responsiveness for
 
 ## Secondary question
 
-If RAM-only caching is insufficient, can session-bound encrypted OPFS caching improve performance while preventing unauthorized recovery of persistent patient data?
+Can encrypted OPFS caching improve performance while protecting persistent patient data and allowing ciphertext reuse by other users currently authorised for the same study?
 
 ## Current architecture
 
+The verified main frontend path uses full-instance retrieval rather than the proposed frame-cache pipeline.
+
 ```text
-Dicoogle/PACS
-  → DICOM request
-  → Web Worker
-  → RAM sliding-window cache
-  → Cornerstone3D
-  → renderer
+dicoogle-next/webapp
+  → /legacy/file?uid=<SOPInstanceUID>
+  → Cornerstone wadouri loader and decoder workers
+  → Cornerstone decoded-image cache
+  → StackViewport / WebGL
 ```
+
+Repository findings are described in [[Architecture Decisions 2026-10-11]]. They are investigation results, not proof that the proposed architecture is implemented.
 
 ## Alternative architecture
 
 ```text
-Dicoogle/PACS
-  → Web Worker
-  → AES-GCM
-  → encrypted OPFS
-  → decrypt
-  → RAM working set
-  → Cornerstone3D
+Dicoogle-Next backend
+  → current study permission and version check
+  → protected study/cache DEK registry
+  → authorised key access over HTTPS
+
+Native frame retrieval
+  → bounded plaintext RAM working set
+  → decoder Worker
+  → Cornerstone decoded-image cache
+  → WebGL renderer
+
+Optional persistent path
+  → AES-GCM encryption before write
+  → shared OPFS ciphertext
+  → expected-context and authentication checks
+  → decrypt into bounded RAM
 ```
 
 ## Current decision
 
-The primary architecture is RAM-only caching with tiling, prefetching, and eviction. Encrypted OPFS is an alternative/fallback to evaluate if RAM-only operation cannot meet the performance requirements.
+The primary proposal-compliant path remains RAM-only caching with bounded prefetching and eviction. Shared encrypted OPFS is a candidate persistent comparison/fallback architecture. Adopting it as the primary architecture requires agreement that strict no-disk persistence is being relaxed to protected encrypted persistence.
 
-OPFS supports a zero-installation viewer, but it does not satisfy strict physical zero-footprint by default because it is persistent browser storage.
+The working shared-cache design trusts Dicoogle with protected DEK custody. Browser sessions retain active keys only in volatile state; the backend can grant the same cache key to a later authorised user. This is not end-to-end encryption against Dicoogle.
+
+The latest shared-cache decisions are in [[Architecture Decisions 2026-10-11]] and [[AES-GCM Key Lifecycle]]. Earlier session-only-key examples in [[Zero-Footprint and OPFS]] and [[Prefetching RAM OPFS]] describe a personal/session-only mode. Their claim that logout permanently makes remaining ciphertext unreadable does not apply to the shared mode. Logout is session cleanup, not global cryptographic erasure.
+
+OPFS supports zero-installation but not strict physical zero-footprint.
 
 ## Main notes
 
+- [[Architecture Decisions 2026-10-11]]
 - [[Literature - Cache Prefetch Security]]
 - [[Prefetching RAM OPFS]]
 - [[Zero-Footprint and OPFS]]
@@ -59,6 +76,8 @@ OPFS supports a zero-installation viewer, but it does not satisfy strict physica
 - [[Cache Benchmark]]
 - [[Security Tests]]
 
+Some linked notes remain planned and have not yet been created.
+
 ## Research layers
 
 ### Literature
@@ -69,9 +88,11 @@ OPFS supports a zero-installation viewer, but it does not satisfy strict physica
 
 ### Architecture
 
+- [[Architecture Decisions 2026-10-11]]
 - [[Zero-Footprint and OPFS]]
 - [[Prefetching RAM OPFS]]
 - [[DICOMweb and Dicoogle]]
+- [[Diagrams/README]]
 
 ### Security
 
@@ -84,66 +105,39 @@ OPFS supports a zero-installation viewer, but it does not satisfy strict physica
 
 - [[Performance KPI]]
 - [[Cache Benchmark]]
+- [[Security Tests]]
 
 ## Current backend context
 
-The current Dicoogle frontend uses a UID-based file URL similar to:
+The frontend is always `dicoogle-next/webapp`, including compatibility comparisons with V3. The target backend is `dicoogle-next`; `dicoogle` V3 is a reference/comparison, not a replacement frontend.
 
-```text
-/legacy/file?uid=<SOPInstanceUID>
-```
+The investigation found WADO-RS RetrieveFrames in the experimental `feat/frontend-frame-retrieval` branch/build, but not in the investigated `dev` source. The branch is inspiration and proof-of-concept evidence, not an automatic merge target. Native uncompressed frame tests were successful; compressed-syntax support and end-to-end viewer integration require separate validation.
 
-The observed response is:
+`/dic2png` decodes DICOM and re-encodes a rendered PNG. It is a preview/thumbnail path, not a substitute for native diagnostic frame retrieval. HTTP chunked transfer does not imply DICOM frame streaming.
 
-```http
-Content-Type: application/dicom
-Transfer-Encoding: chunked
-Content-Disposition: attachment; filename=...
-Accept-Ranges: bytes
-```
-
-This appears to return a complete DICOM instance. The sliding-window design is straightforward if each image has a separate SOP Instance UID. If one SOP Instance contains many frames, frame-level retrieval must be investigated.
-
-See [[DICOMweb and Dicoogle]].
+Transport/cache headers depend on backend and deployment; do not apply an observed V3 response contract universally to Next. The tested Next API used Spring no-store defaults, which still need explicit verification and policy.
 
 ## KPI
 
-Initial target from the dissertation proposal:
-
 > Open 8 mammography tomosynthesis images in less than 500 ms.
 
-The exact event still needs to be confirmed:
+Confirm the event before benchmarking: first visible render, all eight images decoded/rendered, or viewer interactive. Separate cold start, warm cache and cross-user warm cache. Server-only frame latency is not the end-to-end KPI.
 
-- First visible render.
-- All eight images decoded.
-- All eight images rendered.
-- Viewer interactive.
-
-See [[Performance KPI]].
+See [[Performance KPI]] and [[Security Tests]].
 
 ## Immediate tasks
 
-1. Confirm the exact Dicoogle image retrieval path.
-2. Determine whether the study uses one SOP Instance per image or multiframe objects.
-3. Measure the current viewer without an application cache.
-4. Implement a bounded RAM cache.
-5. Add small-window prefetching.
-6. Measure cache hit ratio and navigation latency.
-7. Test RAM pressure with large studies.
-8. Investigate Dicoogle frame-level retrieval if required.
-9. Add encrypted OPFS only as a comparison or fallback.
-10. Add persistent-storage and cleanup security tests.
+1. Review and agree the architecture/trust assumptions before implementation.
+2. Confirm realistic datasets, frame layout and compressed transfer syntaxes.
+3. Define the exact 500 ms event and experimental controls.
+4. Measure full-instance and frame-network-only baselines.
+5. Design bounded native-frame RAM and Cornerstone decoded-cache ownership.
+6. Add bounded prefetch, eviction and session-generation cleanup.
+7. Evaluate plaintext OPFS only as a synthetic-data performance control.
+8. Evaluate session-only encrypted OPFS separately from shared encrypted OPFS.
+9. Specify shared DEK custody, nonce policy, context/freshness checks and multi-tab writes.
+10. Validate authorised User B reuse, denied key access, tampering, stale entries, interrupted writes and late completion after logout.
 
 ## Vault structure
 
-```text
-Dissertation/
-├── Dissertation Home.md
-├── 00 Overview/
-├── 01 Literature/
-├── 02 Architecture/
-├── 03 Threat Model/
-└── 04 Experiments/
-```
-
-The current files can remain in one folder initially. Move them into folders only after the links work correctly.
+Notes remain flat Markdown with Obsidian wikilinks; diagram sources are in `Diagrams/`. Do not reorganise the vault or `.obsidian` configuration as part of the decision update.
