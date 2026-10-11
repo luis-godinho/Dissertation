@@ -1,0 +1,49 @@
+flowchart LR
+    subgraph Server["Trusted Dicoogle server - proposed key custody"]
+        Identity["CURRENT: Session/token validation"]
+        Policy["PROPOSED: Study permission and current-version policy"]
+        KeyStore["PROPOSED: Durable protected DEK registry<br/>Server KEK protects stored DEKs"]
+        Retrieval["Metadata, native frames and key-access responses"]
+        Identity -->|"Authenticated principal"| Policy
+        Policy -->|"Allow or deny study/key operation"| Retrieval
+        KeyStore -->|"Scoped DEK; server is trusted with key material"| Retrieval
+    end
+    TLS["HTTPS / TLS boundary<br/>Frames, descriptors AND key responses"]
+    subgraph Origin["Viewer origin and browser profile/storage partition"]
+        subgraph Persistent["Persistent storage"]
+            Cache["OPFS: shared ciphertext and protected index"]
+            Other["HTTP cache, thumbnails, downloads and logs<br/>Prevent intended plaintext persistence; audit"]
+        end
+        subgraph Active["Active browser processing - not hard isolation"]
+            Gate["Current-user access gate"]
+            DEK["Volatile DEK and crypto operations"]
+            Check["Expected-context validation and AEAD tag verification"]
+            RAM["Bounded plaintext native-frame RAM"]
+            Worker["Worker/WASM decode buffers"]
+            Cornerstone["Decoded Cornerstone objects"]
+            GPU["Canvas, GPU textures and driver state"]
+            Gate -->|"Current-session permission to request/use key"| DEK
+            DEK -->|"Active cryptographic capability"| Check
+            Check -->|"Authenticated plaintext; no decode on failure"| RAM
+            RAM -->|"Decode input"| Worker
+            Worker -->|"Decoded pixels"| Cornerstone
+            Cornerstone -->|"Rendering upload"| GPU
+        end
+        Cache -->|"Encrypted frame plus untrusted header"| Check
+        Check -->|"Encrypt native bytes with expected-context AAD"| Cache
+    end
+    Retrieval -->|"Authorised frame, descriptor or DEK response"| TLS
+    TLS -->|"DEK/descriptor in browser memory"| DEK
+    TLS -->|"Native frame bytes in browser memory"| RAM
+    Disk["Offline profile/disk reader"]
+    Script["Same-origin XSS or malicious dependency"]
+    Cross["Malicious different-origin page"]
+    Host["Compromised OS/browser; RAM dump, swap or hibernation"]
+    Disk -.->|"May recover ciphertext, length and some metadata"| Cache
+    Script -.->|"May invoke active key; non-extractability is insufficient"| DEK
+    Script -.->|"May read active plaintext"| RAM
+    Cross -.->|"XS-Leaks or SVG pixel stealing if embedding is permitted"| GPU
+    Cross -.->|"SSD contention via attacker's own OPFS; not direct file access"| Cache
+    Host -.->|"May recover keys/plaintext; outside application guarantee"| DEK
+    Host -.->|"Residual memory exposure"| Worker
+    Host -.->|"Residual rendering exposure"| GPU

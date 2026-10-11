@@ -1,0 +1,43 @@
+sequenceDiagram
+    participant U as User B viewer session
+    participant B as Dicoogle backend
+    participant K as Protected cache-key registry
+    participant O as Shared OPFS
+    participant C as Crypto and entry validator
+    participant R as RAM cache
+    participant W as Decoder worker
+    participant V as Cornerstone
+    Note over U,O: Same origin and browser profile/storage partition as cached User A data
+    U->>B: Open Study X with User B session
+    B->>B: Verify current permission and source/key version
+    alt User B not authorised
+        B-->>U: Deny new DEK access
+        Note over U,O: No decryption by cooperative client; prior copied keys cannot be recalled
+    else User B authorised
+        B->>K: Fetch same scoped DEK or current key version
+        K-->>B: DEK and key version
+        B-->>U: DEK and trusted descriptor over HTTPS
+        U->>C: Install volatile key and expected frame context
+        U->>O: Read cached ciphertext
+        O-->>U: Encrypted entry or miss
+        U->>C: Check scope/version; verify AEAD before decode
+        alt Valid current cache hit
+            C-->>U: Verified plaintext frame bytes
+        else Missing, stale or invalid cache entry
+            C-->>U: Reject candidate; no decoded output
+            U->>B: RetrieveFrames with authorised session
+            B-->>U: Native frame bytes
+            U->>C: Encrypt with fresh nonce and expected-context AAD
+            C-->>U: Ciphertext envelope
+            U->>O: Lock and publish complete replacement
+        end
+        U->>R: Store bounded plaintext for User B session
+        R->>W: Decode native frame
+        W-->>U: Decoded image
+        U->>U: Reject result if session generation changed
+        U->>V: Render active-session image
+        U->>R: Clear plaintext on logout/study close
+        U->>W: Reset/terminate managed worker state
+        U->>V: Dispose viewport and owned decoded cache
+        U->>C: Remove active key references
+    end

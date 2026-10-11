@@ -1,0 +1,42 @@
+flowchart TB
+    Source["Same backend, datasets, transfer syntax and navigation traces"]
+    Common["Common controls: HTTPS, bounded Cornerstone cache,<br/>decoder configuration, origin policy and cleanup"]
+    Source --> Common
+    subgraph P1["P1 - frame network-only"]
+        N1["Network frame"] --> D1["Decode and render<br/>No additional reusable native-frame cache"]
+    end
+    subgraph P2["P2 - bounded RAM"]
+        N2["Network frame"] --> R2["Bounded plaintext native-frame RAM"]
+        R2 --> D2["Decode and render"]
+    end
+    subgraph P3["P3 - plaintext OPFS control; synthetic data only"]
+        N3["Network frame"] --> O3["OPFS plaintext"]
+        O3 --> R3["Same bounded RAM policy"]
+        R3 --> D3["Decode and render"]
+    end
+    subgraph P4a["P4a - session-only encrypted persistence"]
+        N4["Network frame"] --> E4["AES-GCM encrypt"]
+        E4 --> O4["OPFS ciphertext"]
+        O4 --> A4["Validate and decrypt with session-only key"]
+        A4 --> R4["Same bounded RAM policy"]
+        R4 --> D4["Decode and render"]
+    end
+    subgraph P4b["P4b - main shared encrypted cache"]
+        Grant["Dicoogle permission check<br/>Persistent protected DEK registry"]
+        Grant --> K5["Current-session scoped DEK"]
+        N5["Network frame"] --> E5["AES-GCM encrypt"]
+        K5 --> E5
+        E5 --> O5["Shared OPFS ciphertext and protected index"]
+        O5 --> A5["Validate current context and decrypt"]
+        K5 --> A5
+        A5 --> R5["Same bounded RAM policy"]
+        R5 --> D5["Decode and render"]
+    end
+    Common --> N1
+    Common --> N2
+    Common --> N3
+    Common --> N4
+    Common --> N5
+    Common --> Grant
+    Trials["Trials: cold, same-session warm, logout/User B,<br/>restart, permission denied, tampered/stale entry,<br/>concurrent tabs and interrupted write"]
+    O5 -.-> Trials

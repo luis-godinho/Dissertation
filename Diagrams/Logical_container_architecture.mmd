@@ -1,0 +1,66 @@
+flowchart TB
+    subgraph Server["Dicoogle-Next backend"]
+        Auth["CURRENT: Login and token validation"]
+        Policy["PROPOSED: Study permission and version check"]
+        Meta["Metadata and frame descriptor service"]
+        Frames["TARGET: WADO-RS RetrieveFrames"]
+        KeyAPI["PROPOSED: Cache key-access API"]
+        Registry["PROPOSED: Persistent cache-key registry<br/>Study/cache scope and key version<br/>DEKs protected under server KEK"]
+        Store["DICOM repository and storage"]
+        Auth -->|"Validated session identity"| Policy
+        Policy -->|"Allow metadata or frame operation"| Meta
+        Policy -->|"Allow requested frame operation"| Frames
+        Policy -->|"Allow key access for selected study"| KeyAPI
+        KeyAPI -->|"Get or create scoped key; reject revoked versions"| Registry
+        Registry -->|"DEK and current cache-key descriptor"| KeyAPI
+        Store -->|"Frame descriptors and version information"| Meta
+        Store -->|"Native pixel-frame data"| Frames
+    end
+    subgraph Browser["dicoogle-next/webapp - proposed shared-cache design"]
+        UI["Study and viewport controller"]
+        Gate["Session and study-access gate<br/>Current identity, policy lease and generation"]
+        Keys["Volatile study DEK handle<br/>Not intentionally persisted unwrapped"]
+        Scheduler["Frame scheduler<br/>RAM hit, OPFS hit or network miss<br/>Bounded prefetch and cancellation"]
+        Entry["Cache entry validator<br/>Requested frame, source version, format and key version"]
+        Crypto["Web Crypto AES-GCM<br/>Nonce management and expected-context AAD<br/>Reject authentication failure before decode"]
+        OPFS["Shared encrypted OPFS<br/>Same origin and browser storage partition"]
+        Manifest["Protected cache index<br/>Minimised non-secret entry headers"]
+        Coordination["Multi-tab cache coordination<br/>Write locking and consistent manifest publication"]
+        RAM["Bounded plaintext native-frame cache"]
+        Decode["Decoder Worker and optional WASM"]
+        CS["Bounded Cornerstone decoded-image cache"]
+        GPU["WebGL canvas and GPU textures"]
+        Cleanup["Session cleanup coordinator<br/>Cancel tasks and invalidate session generation"]
+        Metrics["De-identified evaluation metrics"]
+        UI -->|"Select study and frame"| Gate
+        Gate -->|"Permit current-session work"| Scheduler
+        Gate -->|"Request authorised study/cache key"| KeyAPI
+        KeyAPI -->|"DEK and current descriptor over HTTPS; trusted server"| Keys
+        Keys -->|"Active encryption/decryption capability"| Crypto
+        UI -->|"Request frame identity, format and source version"| Meta
+        Meta -->|"Trusted descriptor over HTTPS"| Entry
+        Scheduler -->|"RAM lookup scoped to session and frame"| RAM
+        RAM -->|"Plaintext hit, if session still current"| Scheduler
+        Scheduler -->|"Read encrypted candidate"| OPFS
+        OPFS -->|"Ciphertext and entry header"| Entry
+        Entry -->|"Reject mismatched context; pass matching entry"| Crypto
+        Crypto -->|"Verified plaintext only"| RAM
+        Scheduler -->|"Miss: authorised frame request over HTTPS"| Frames
+        Frames -->|"Native frame bytes protected in transit by TLS"| Scheduler
+        Scheduler -->|"Cold frame for immediate decoding"| RAM
+        Scheduler -->|"Optional asynchronous encrypted-cache population"| Crypto
+        Crypto -->|"Ciphertext plus fresh nonce and tag"| Coordination
+        Coordination -->|"Publish complete entry and update index"| OPFS
+        OPFS ---|"Authenticated/encrypted mappings and key versions"| Manifest
+        RAM -->|"Plaintext native bytes, bounded handoff"| Decode
+        Decode -->|"Decoded image; check active session generation"| CS
+        CS -->|"GPU upload and rendering"| GPU
+        UI -->|"Logout, study close or permission-expiry event"| Cleanup
+        Cleanup -->|"Abort fetches/prefetch and reject late completions"| Scheduler
+        Cleanup -->|"Clear plaintext references"| RAM
+        Cleanup -->|"Reset or terminate managed workers"| Decode
+        Cleanup -->|"Evict decoded images and dispose viewport"| CS
+        Cleanup -->|"Remove active DEK references, not global key erasure"| Keys
+        Cleanup -->|"Retain ciphertext or apply cache retention policy"| OPFS
+        Scheduler -->|"Timing, bytes, hits and misses; no patient identifiers"| Metrics
+    end

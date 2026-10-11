@@ -1,0 +1,54 @@
+sequenceDiagram
+    participant U as User A viewer session
+    participant B as Dicoogle backend
+    participant K as Protected cache-key registry
+    participant O as Shared OPFS
+    participant C as Crypto and entry validator
+    participant R as RAM cache
+    participant W as Decoder worker
+    participant V as Cornerstone
+    U->>B: Open Study X with existing session token
+    B->>B: Check permission and current source/key version
+    alt Access denied
+        B-->>U: Deny; no DEK and no frame processing
+    else Access allowed
+        B->>K: Get or create scoped cache DEK and key version
+        K-->>B: Scoped DEK
+        B-->>U: DEK and current descriptor over HTTPS
+        U->>C: Install volatile DEK and expected frame context
+        U->>O: Read candidate encrypted frame
+        alt Entry is present
+            O-->>U: Ciphertext, nonce, tag and header
+            U->>C: Validate version/context and verify AEAD
+            alt Entry invalid or authentication fails
+                C-->>U: Reject; do not decode candidate
+                U->>O: Invalidate entry
+                U->>B: Refetch authorised native frame
+                B-->>U: Native frame bytes
+            else Entry valid
+                C-->>U: Verified plaintext frame bytes
+            end
+        else Entry absent
+            O-->>U: Cache miss
+            U->>B: RetrieveFrames request
+            B-->>U: Native frame bytes
+        end
+        U->>R: Store bounded current-session plaintext
+        R->>W: Decode native frame
+        W-->>U: Decoded image
+        U->>U: Check session generation is still active
+        U->>V: Publish and render decoded image
+        opt Populate or replace persistent entry
+            U->>C: Encrypt with fresh nonce and expected-context AAD
+            C-->>U: Ciphertext envelope
+            U->>O: Lock and publish complete entry/index update
+        end
+        U->>U: Logout or close study
+        U->>U: Invalidate session generation and cancel in-flight work
+        U->>R: Clear plaintext references
+        U->>W: Reset or terminate managed workers
+        U->>V: Purge owned images and dispose viewport
+        U->>C: Remove active DEK references
+        Note over K,O: Shared ciphertext and protected backend DEK can survive logout
+        Note over C,V: Cleanup is not proof of memory or media sanitisation
+    end
