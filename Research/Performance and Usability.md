@@ -1,17 +1,22 @@
-# Performance KPI
+---
+status: proposed
+tags: [research, performance, usability]
+---
+
+# Performance and Usability
 
 ## Related notes
 
 - [[Project Requirements]]
-- [[Dissertation Home]]
+- [[Home]]
 - [[Security Tests]]
-- [[Browser Storage Threat Model]]
-- [[Prefetching RAM OPFS]]
-- [[Cache Benchmark]]
+- [[Threat Model]]
+- [[Caching and Prefetching]]
+- Cache Benchmark (pending note; not linked in this vault yet)
 
 ## Status
 
-2026-10-12 draft, refined after owner clarification: the central user question is what delay feels acceptable during a particular study-viewing task. Technical FPS/cine rates are supporting workloads, not substitutes for that question. No verified universal CT/MRI/DBT acceptable-ms table was found in the consulted evidence.
+Draft, refined after owner clarification: the central user question is what delay feels acceptable during a particular study-viewing task. Technical FPS/cine rates are supporting workloads, not substitutes for that question. No verified universal CT/MRI/DBT acceptable-ms table was found in the consulted evidence.
 
 ## Three separate meanings of timing
 

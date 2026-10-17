@@ -1,17 +1,22 @@
+---
+status: proposed
+tags: [specification, requirements]
+---
+
 # Project Requirements
 
 ## Related notes
 
-- [[Dissertation Home]]
-- [[Performance KPI]]
-- [[Browser Storage Threat Model]]
-- [[AES-GCM Key Lifecycle]]
+- [[Home]]
+- [[Performance and Usability]]
+- [[Threat Model]]
+- [[Key Management]]
 - [[Security Tests]]
-- [[Diagrams/README]]
+- [[diagrams/README]]
 
 ## Status
 
-2026-10-12 draft. Architecture and sharing scope confirmed; requirements are proposed acceptance objectives, not completed implementation or passed tests. Clinician timing tolerance and the precise eight-image/500 ms event remain unvalidated.
+Draft. Architecture and sharing scope confirmed; requirements are proposed acceptance objectives, not completed implementation or passed tests. Clinician timing tolerance and the precise eight-image/500 ms event remain unvalidated.
 
 ## Scope
 
@@ -83,7 +88,7 @@ RAM-only remains a comparison. Persistent ciphertext is deliberate and relaxes s
 
 ## Evidence
 
-Radiology user requirements: Moise & Atkins DOI `10.1007/s10278-004-1003-9`. Real clinical usability: Jorritsma et al. DOI `10.1016/j.ijmedinf.2015.11.001`. Context-specific radiology UX: Iannessi et al. DOI `10.1007/s13244-018-0620-7`. Technical workload sources and their limits: [[Performance KPI]].
+Radiology user requirements: Moise & Atkins DOI `10.1007/s10278-004-1003-9`. Real clinical usability: Jorritsma et al. DOI `10.1016/j.ijmedinf.2015.11.001`. Context-specific radiology UX: Iannessi et al. DOI `10.1007/s13244-018-0620-7`. Technical workload sources and their limits: [[Performance and Usability]].
 
 Security rationale: Nextcloud DOI `10.1109/EUROSP60621.2024.00051`; encrypted storage failures DOI `10.1145/3658644.3690309`; formal storage DOI `10.1007/978-3-031-68379-4_2`; browser keys/memory DOI `10.1016/j.fsidi.2024.301763` and `10.1016/j.fsidi.2024.301809`. No paper proves OPFS always faster/necessary or establishes universal modality-specific acceptable delays.
 
