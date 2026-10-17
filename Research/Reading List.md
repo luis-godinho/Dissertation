@@ -8,12 +8,14 @@ tags: [research, reading-list]
 ## Related notes
 
 - [[Zero-Footprint and OPFS]] — definitions of zero-footprint and implications of persistent browser storage.
-- [[Caching and Prefetching]] — sliding-window caching, prefetching, eviction, and OPFS alternatives.
+- [[Caching and Prefetching]] — bounded RAM, prefetching, eviction, and shared encrypted OPFS.
+- [[Architecture/Architecture Decisions|Architecture Decisions]] — working design and unresolved implementation choices.
+- [[Specification/Key Management|Key Management]] — backend-held keys, active browser keys, and shared-cache reuse.
 - DICOMweb and Dicoogle (pending note) — backend retrieval path and DICOM object/frame considerations.
 - OHIF and Zero-Footprint Viewers (pending note) — reference viewer architecture and deployment meaning of zero-footprint.
 - Cornerstone3D Architecture (pending note) — decoding, runtime caching, and rendering pipeline.
 - [[Threat Model]] — storage, XSS, key, and residual-data threats.
-- [[Performance and Usability]] — benchmark definitions and the 500 ms target.
+- [[Performance and Usability]] — benchmark definitions and the working 500 ms target, not a universal clinical threshold.
 
 ## Purpose
 
@@ -23,12 +25,15 @@ This note identifies which papers and technical references are relevant to:
 
 Focus areas:
 
-- RAM-only caching.
+- Shared encrypted OPFS caching.
+- Bounded plaintext native-frame RAM working sets.
+- RAM-only and session-only encrypted caching as comparison modes.
 - Prefetching.
 - Large DICOM studies.
 - Browser-based medical-image viewers.
 - Persistent browser storage.
 - Encryption at rest.
+- Backend key custody and authorised cross-session reuse.
 - Memory and GPU residue.
 - Performance/security trade-offs.
 
@@ -36,19 +41,20 @@ Focus areas:
 
 Web-based medical-image viewers need to retrieve and render large DICOM studies in a browser. Caching and prefetching improve responsiveness, but persistent browser storage can leave patient data on the client.
 
-The dissertation therefore studies whether a bounded volatile cache can provide adequate performance without intentionally persisting patient images to disk.
+The proposed architecture uses shared encrypted OPFS as the persistent tier and bounded plaintext native-frame RAM as the active working set. Decoder Worker/WASM memory and the bounded Cornerstone decoded-image cache must also be managed and measured. RAM-only is an experimental baseline, not the primary architecture, and OPFS is not merely a fallback after RAM-only fails.
 
-If RAM-only caching is insufficient for very large studies, encrypted persistent caching such as OPFS may be evaluated as an alternative.
+Dicoogle retains recoverable scoped DEKs under backend KEK protection. After current study permission and version checks, an authorised session obtains a key and trusted cache descriptor. A later authorised user on the same origin and browser profile/storage partition may reuse compatible ciphertext. The backend is trusted with keys; this is not E2EE against Dicoogle.
 
 ```text
 Performance requirement:
-  cache + prefetch + progressive loading
+  shared encrypted OPFS + bounded RAM + prefetch + progressive loading
 
 Privacy requirement:
   no intentional plaintext patient-data persistence
 
 Security requirement:
-  threat model browser storage, RAM, GPU, swap, crash dumps, and XSS
+  authorisation + context/freshness checks + authenticated encryption
+  + key lifecycle + browser/RAM/GPU/swap/crash-dump/XSS threat analysis
 ```
 
 ## Literature map
@@ -72,7 +78,7 @@ Security requirement:
 
 ### Why it matters
 
-The paper *Caching and Prefetching Strategy for Web-Based Medical Image Visualization System* is the most directly relevant performance paper. It focuses on the mechanisms needed to make medical-image navigation responsive:
+The paper *Caching and Prefetching Strategy for Web-Based Medical Image Visualization System* is a directly relevant performance reference. It focuses on the mechanisms needed to make medical-image navigation responsive:
 
 - Caching.
 - Prefetching.
@@ -112,24 +118,26 @@ This dissertation:
 The dissertation extension should investigate:
 
 - Plaintext patient data at rest.
-- Encrypted persistent browser caches.
-- Session-bound keys.
-- Cache cleanup.
+- Shared encrypted persistent browser caches.
+- Backend-held recoverable keys and current-session browser key access.
+- Authorisation, trusted context, and freshness before cache reuse.
+- Session cleanup versus global cryptographic erasure.
 - Browser storage inspection.
 - GPU and memory residue.
 
 ### Experiments inspired by this paper
 
-Compare:
+Use the comparison presets in [[Caching and Prefetching]]:
 
 ```text
-No cache
-RAM cache
-RAM cache + prefetch
-Position-aware RAM cache
-Encrypted persistent cache
-Encrypted persistent cache + RAM working set
+P1: Native-frame network-only baseline
+P2: Bounded RAM baseline
+P3: Plaintext OPFS control (synthetic data only)
+P4a: Session-only encrypted OPFS
+P4b: Shared encrypted OPFS + bounded RAM working set
 ```
+
+P1 still includes runtime/Cornerstone decoded memory for rendering. Compare no prefetching, fixed prefetching, and direction/position-aware prefetching where applicable. Keep authorisation, freshness, and AEAD checks enabled during protected-mode timings.
 
 Measure:
 
@@ -139,8 +147,10 @@ Measure:
 - Distant navigation latency.
 - Cache hit ratio.
 - Network bytes transferred.
-- Peak RAM.
+- Peak RAM, including decoder and decoded-image retention.
 - Prefetch usefulness.
+- Encryption/decryption, key-access, and validation overhead.
+- Reload, logout, restart, and later authorised cache reuse.
 
 ## JavaScript and DICOM in the browser
 
@@ -175,12 +185,13 @@ It helps justify:
 ```text
 DICOM backend
   → browser request
-  → binary response
+  → native-frame binary response
+  → bounded RAM
   → decode
-  → RAM/rendering
+  → rendering
 ```
 
-It also helps explain why persistent storage becomes attractive when the study is larger than the available RAM working set.
+It also helps explain why persistent storage becomes attractive when the study is larger than the available RAM working set. Cross-session reuse is a separate motivation to evaluate, not a guaranteed performance benefit.
 
 This is older literature. Use it for architectural history and concepts, not as the source for current OPFS implementation details.
 
@@ -202,6 +213,7 @@ This is older literature. Use it for architectural history and concepts, not as 
 - Transfer syntax.
 - Number of frames.
 - Cold versus warm cache.
+- Authorisation/key state and source/cache version.
 
 Report median and p95 latency rather than only averages.
 
@@ -217,6 +229,7 @@ Add security measurements that normal viewer surveys often omit:
 - Network-cache behavior.
 - RAM working-set size.
 - Cleanup after logout.
+- Substitution, replay, tampering, and unauthorised reuse attempts.
 
 ## OHIF
 
@@ -270,16 +283,17 @@ Study:
 - Encoded versus decoded data retention.
 - Rendering and GPU resource lifecycle.
 
-The most useful cache boundary is before decoding:
+The proposed cache boundary is before decoding:
 
 ```text
-DICOMweb/Dicoogle response
-  → secure cache
-  → encoded DICOM/image bytes
-  → Cornerstone decoder
-  → decoded pixels
-  → rendering
+Authorised network response or authenticated OPFS hit
+  → bounded plaintext native-frame RAM
+  → decoder Worker/WASM
+  → bounded Cornerstone decoded-image cache
+  → WebGL rendering
 ```
+
+Preserve the native diagnostic representation and its metadata association. `/dic2png` is a rendered preview, not the native diagnostic cache unit. Coordinate eviction across native-frame RAM, decoder buffers, and Cornerstone rather than retaining duplicate long-lived decoded stores.
 
 See Cornerstone3D Architecture (pending note).
 
@@ -303,7 +317,7 @@ It does not provide a modern solution for:
 
 - Encrypted OPFS.
 - AES-GCM cache encryption.
-- Session-bound keys.
+- Shared-cache backend key custody and authorised reuse.
 - Browser storage inspection.
 - Secure cache deletion.
 - GPU memory residue.
@@ -311,7 +325,7 @@ It does not provide a modern solution for:
 
 ## OPFS
 
-OPFS is relevant for a large persistent binary cache. It provides:
+OPFS is relevant for the proposed persistent encrypted binary-cache tier. It provides:
 
 - Origin-private file-like storage.
 - Random-access file operations.
@@ -329,13 +343,15 @@ OPFS:
   not guaranteed to be forensically erased
 ```
 
-If used for patient data:
+Proposed patient-data path:
 
 ```text
-DICOM bytes
-  → AES-GCM
-  → OPFS ciphertext
+Native diagnostic frame bytes
+  → AES-GCM with expected-context binding
+  → shared OPFS ciphertext + protected entry metadata
 ```
+
+On reuse, validate expected scope and current versions, then verify AEAD before any plaintext reaches the decoder. Shared means same origin and browser profile/storage partition, not cross-device/profile sharing.
 
 See [[Zero-Footprint and OPFS]] and [[Caching and Prefetching]].
 
@@ -363,6 +379,8 @@ Evaluate encryption together with:
 - Worker boundaries.
 - Session expiration.
 
+The working shared-cache model trusts Dicoogle with recoverable scoped DEKs protected by a backend KEK. Current permission and version checks precede key release. Session-only encryption is a separate comparison mode; the shared DEK is not assumed to be irrecoverably destroyed on logout. Revocation cannot make a user forget copied keys or plaintext.
+
 See [[Threat Model]] and [[Key Management]].
 
 ## OWASP browser-storage testing
@@ -374,11 +392,15 @@ Search IndexedDB for plaintext DICOM signatures
 Search OPFS for plaintext patient identifiers
 Inspect Cache Storage
 Inspect localStorage/sessionStorage
-Check extractable CryptoKeys
-Check logout cleanup
+Check extractable CryptoKeys and privileged key use
+Check logout cleanup and late-task cancellation
 Check browser-cache headers
 Check sensitive data in URLs and logs
+Check unauthorised and later authorised shared-cache reuse
+Check tampering, substitution, replay, and version mismatch
 ```
+
+Plaintext OPFS experiments use synthetic data only. Treat negative findings as bounded by acquisition method and test conditions, not universal proof of absence.
 
 ## GPU memory residue
 
@@ -395,7 +417,7 @@ Network buffer
   → GPU memory
 ```
 
-This motivates bounded working sets, explicit resource cleanup, and documenting browser/OS limitations.
+This motivates bounded working sets, explicit resource cleanup, and documenting browser/OS limitations. WebGL is the working rendering path; this wider threat map is not a claim that WebGPU is implemented. Session cleanup is not proof of physical RAM/GPU/swap sanitisation.
 
 See GPU Memory Residue (pending note).
 
@@ -404,81 +426,85 @@ See GPU Memory Residue (pending note).
 Use Web Crypto as the browser-native implementation reference for encrypted persistent caching.
 
 ```text
-Frame/chunk
+Native frame + expected associated data
   → AES-GCM encryption
-  → ciphertext + IV/authentication tag
-  → OPFS
+  → ciphertext + nonce/authentication tag
+  → shared OPFS
 ```
 
 Rules:
 
-- Use authenticated encryption.
-- Use a fresh random IV for every encryption operation with a key.
-- Do not reuse an IV/key pair.
-- Keep keys out of filenames and plaintext metadata.
-- Prefer session-bound keys for the initial design.
-- Do not persist the decryption key in the same cache.
-- Test tampering and authentication failure.
+- Use authenticated encryption and a full authentication tag.
+- Never reuse a nonce under the same DEK, including retries, rewrites, frames, tabs, workers, users, and sessions.
+- Select random nonces with documented collision/key-use bounds or coordinated allocation; the mechanism is unresolved. Do not use frame number alone.
+- Bind expected namespace, study/frame identity, transfer syntax, cache-format version, DEK version, and source version where applicable using unambiguous associated data.
+- Establish expected context from the request/trusted backend, not a mutable cache header alone.
+- Associated data is authenticated, not encrypted; minimise exposed identifying values.
+- Keep keys out of filenames and plaintext metadata. Do not intentionally persist unwrapped browser keys in browser storage, URLs, logs, or metric exports.
+- Keep browser key access scoped to authorised active work; backend recoverability supports later authorised shared-cache reuse.
+- A non-extractable key does not prevent malicious privileged code from using it.
+- Test tampering and authentication failure. Verify freshness separately; AEAD alone does not prevent replay.
 
 ## Literature-based architecture
 
 ```text
-DICOMweb/Dicoogle
+User/session + requested study
       ↓
-Metadata retrieval
+Dicoogle permission and current source/key-version check
       ↓
-Selected frame or instance retrieval
+Scoped DEK + trusted cache descriptor over HTTPS
       ↓
-Web Worker
-      ├── Fetch
-      ├── Decrypt if persistent cache hit
-      ├── Encrypt before persistence
-      ├── DICOM parsing
-      └── Decoding
+RAM lookup / OPFS candidate / authorised network retrieval
       ↓
-Bounded RAM cache
-      ├── visible images
-      ├── nearby images
-      └── prefetched images
+Worker-side cache and decode pipeline
+      ├── Validate expected context and freshness
+      ├── Verify AEAD before decoding OPFS data
+      ├── Fetch native bytes on cache miss
+      ├── Encrypt reusable entries before persistence
+      └── Parse/decode verified or authorised native bytes
       ↓
-Cornerstone3D
+Bounded native-frame RAM + bounded Cornerstone decoded cache
       ↓
-Canvas/WebGL/WebGPU
+WebGL rendering
 ```
 
-Primary architecture:
+Primary proposed architecture:
 
 ```text
-RAM-only cache
-+ tiling
-+ prefetching
-+ eviction
-+ DICOMweb/Dicoogle progressive retrieval
+Shared encrypted OPFS cache
++ bounded plaintext native-frame RAM working set
++ managed decoder Workers/WASM
++ coordinated bounded Cornerstone decoded-image cache
++ demand-first prefetching and eviction
++ frame/tile/progressive retrieval where supported
++ authorisation, context/freshness checks, and key lifecycle
 ```
 
-Alternative architecture:
+Comparison modes:
 
 ```text
-Encrypted OPFS cache
-+ session-bound keys
-+ RAM decoded working set
-+ cleanup and invalidation
+P1 network-only
+P2 bounded RAM
+P3 plaintext OPFS (synthetic data only)
+P4a session-only encrypted OPFS
+P4b shared encrypted OPFS + bounded RAM
 ```
 
-See [[Caching and Prefetching]].
+Cold display need not wait for an OPFS write. Persistence benefits must be measured rather than assumed. See [[Caching and Prefetching]] and [[Architecture/Architecture Decisions|Architecture Decisions]].
 
 ## Literature-based research gap
 
-> Existing medical-image viewer research studies browser deployment, DICOM retrieval, rendering, caching, and prefetching, while client-side security research studies encrypted browser storage and key-management threats. There is limited integration of these areas for large DICOM studies, particularly regarding the performance cost and security lifecycle of encrypted browser-side caching.
+> Working hypothesis: existing medical-image viewer research studies browser deployment, DICOM retrieval, rendering, caching, and prefetching, while client-side security research studies encrypted browser storage and key-management threats. Integrated evidence remains to be established for the performance cost, authorised reuse, and security lifecycle of shared encrypted browser-side DICOM caching.
 
-The dissertation connects these areas by evaluating:
+This is a research hypothesis to validate through source review, not proof of exhaustive novelty. The dissertation connects these areas by evaluating:
 
 ```text
-DICOM retrieval
+DICOM native-frame retrieval
 + medical-image prefetching
-+ bounded RAM caching
-+ optional encrypted persistent caching
-+ session-bound key management
++ bounded RAM and decoded working sets
++ shared encrypted persistent OPFS caching
++ backend KEK/DEK custody and active-session key access
++ authorisation/context/freshness validation
 + browser storage testing
 + RAM/GPU residual-data limitations
 ```
@@ -539,34 +565,33 @@ DOI/URL:
 11. Vulnerable GPU Memory Management.
 12. Web Crypto AES-GCM documentation.
 
+Read these alongside the existing evidence references in [[Specification/Key Management|Key Management]]: Share with Care, formal encrypted cloud storage, puncturable key wrapping, NIST SP 800-38D, and NIST SP 800-57 Part 1 Rev. 5. Use [[Research/Literature Comparison Table|Literature Comparison Table]] for source-specific limitations and verification status.
+
 ## Final interpretation
 
-The literature does not imply that all prefetched data must be written to disk.
+The literature does not imply that all prefetched data must be written to disk. The proposed design nevertheless includes shared encrypted OPFS as a persistent tier, rather than waiting for a RAM-only design to fail.
 
 Primary path:
 
 ```text
-Fetch into RAM
-  → bounded working set
-  → prefetch intelligently
-  → evict distant data
-  → refetch when needed
+Current permission/version check + authorised key access
+  → bounded plaintext RAM hit, authenticated OPFS hit, or network fetch
+  → managed decoder and bounded Cornerstone cache
+  → display
+  → encrypt/publish reusable entries asynchronously where appropriate
 ```
 
-OPFS is initially:
-
-- A persistent performance baseline.
-- An optional fallback for studies larger than the RAM budget.
-- A design requiring encryption and key management.
-- A relaxation of strict no-disk-persistence.
+On logout or study close, invalidate the session generation, cancel tasks, and remove plaintext/key references. Compatible shared ciphertext may remain under retention policy for later authorised reuse. This is session cleanup, not global cryptographic erasure or strict physical zero-footprint.
 
 Main question:
 
-> Can intelligent RAM-only caching, tiling, and prefetching achieve the required responsiveness for realistic large DICOM workloads without persistent patient-data storage?
+> Can shared encrypted OPFS caching plus bounded RAM provide the required responsiveness for realistic large DICOM workloads while preserving the stated security and privacy boundaries?
 
 Secondary question:
 
-> If RAM-only caching is insufficient, what performance benefit does encrypted OPFS provide, and what additional security risks does it introduce?
+> How do network-only, bounded RAM, session-only encrypted OPFS, and shared encrypted OPFS plus bounded RAM differ in performance, reuse, privacy exposure, and operational limitations?
+
+Remaining implementation questions include key scope, KEK protection, nonce coordination, source-version authority, leases, multi-tab behaviour, retention, fallback, and exact workload-specific KPIs. Shared persistence as the primary proposed tier is not an unresolved fallback decision.
 
 ## Connected dissertation concepts
 
@@ -574,4 +599,6 @@ Secondary question:
 - [[Zero-Footprint and OPFS]]
 - [[Performance and Usability]]
 - [[Threat Model]]
+- [[Architecture/Architecture Decisions|Architecture Decisions]]
+- [[Specification/Key Management|Key Management]]
 - Cache Benchmark (pending note; not linked in this vault yet)
