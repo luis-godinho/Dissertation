@@ -1,13 +1,18 @@
+---
+status: planned
+tags: [research, security-tests]
+---
+
 # Security Tests
 
 ## Related notes
 
-- [[Architecture Decisions 2026-10-11]]
-- [[Browser Storage Threat Model]]
-- [[AES-GCM Key Lifecycle]]
-- [[Performance KPI]]
-- [[Cache Benchmark]]
-- [[Diagrams/README]]
+- [[Architecture Decisions]]
+- [[Threat Model]]
+- [[Key Management]]
+- [[Performance and Usability]]
+- Cache Benchmark (pending note; not linked in this vault yet)
+- [[diagrams/README]]
 
 ## Status
 

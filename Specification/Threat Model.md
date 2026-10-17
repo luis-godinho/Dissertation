@@ -1,19 +1,24 @@
-# Browser Storage Threat Model
+---
+status: proposed
+tags: [specification, threat-model]
+---
+
+# Threat Model
 
 ## Related notes
 
 - [[Project Requirements]]
-- [[Performance KPI]]
-- [[Dissertation Home]]
-- [[Architecture Decisions 2026-10-11]]
-- [[AES-GCM Key Lifecycle]]
+- [[Performance and Usability]]
+- [[Home]]
+- [[Architecture Decisions]]
+- [[Key Management]]
 - [[Zero-Footprint and OPFS]]
 - [[Security Tests]]
-- [[Diagrams/README]]
+- [[diagrams/README]]
 
 ## Status and scope
 
-2026-10-12 preliminary model. Main target: encrypted persistent OPFS plus bounded plaintext RAM. Sharing is between successive authorised application sessions on one machine/origin/browser profile/storage partition. Cross-device/profile sharing and offline key acquisition are excluded initially. Concurrent tabs are a robustness case. Proposed mitigations are not passed tests. [[Project Requirements]] supersedes historical RAM-first/fallback wording.
+Preliminary model. Main target: encrypted persistent OPFS plus bounded plaintext RAM. Sharing is between successive authorised application sessions on one machine/origin/browser profile/storage partition. Cross-device/profile sharing and offline key acquisition are excluded initially. Concurrent tabs are a robustness case. Proposed mitigations are not passed tests. [[Project Requirements]] supersedes historical RAM-first/fallback wording.
 
 ## Assets
 
@@ -72,4 +77,4 @@ Nextcloud DOI `10.1109/EUROSP60621.2024.00051`: key insertion/ghost key/nonce mi
 
 No strict physical zero-footprint, memory/media erasure, E2EE against Dicoogle, recall of copied keys, universal clinical timing standard or automatic GDPR compliance is claimed. Non-extractable keys/Workers/locks are not complete same-origin/host security boundaries. Windows studies do not add Windows to the current test scope.
 
-Use synthetic/de-identified data and restricted evidence handling; distinguish technical workload success from clinician-perceived acceptability in [[Performance KPI]].
+Use synthetic/de-identified data and restricted evidence handling; distinguish technical workload success from clinician-perceived acceptability in [[Performance and Usability]].

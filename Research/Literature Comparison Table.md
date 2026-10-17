@@ -1,4 +1,16 @@
+---
+status: needs-review
+tags: [research, literature, comparison]
+---
+
 # Literature Comparison Table
+
+> [!warning] Historical and draft data
+> This table contains historical/older data, earlier draft summaries, version-specific findings, and entries not uniformly revalidated.
+> Some metadata, numeric values, browser-version assumptions, benchmarks, and legal interpretations may be outdated or context-specific.
+> It is **not** a statement of currently implemented features, universal clinical timings, proven compliance, or exhaustive novelty.
+> Verify each original source before using it for dissertation claims. Scientific publication years and DOIs are intentionally preserved.
+
 
 ## Common theme
 
@@ -99,8 +111,8 @@ The dissertation experiment can compare:
 
 The cybersecurity contribution remains the measurement of data exposure and protection. Streaming research supplies the performance and prefetching techniques that make the comparison realistic.
 
-## Working research gap
+## Working research gap hypothesis
 
-The literature demonstrates zero-footprint medical-image viewers, DICOMweb interoperability, client-side rendering, caching, prefetching, progressive image streaming, tile-based video adaptation, light-field segment streaming, encrypted web storage, and secure clinical workflows. However, it does not provide a controlled cybersecurity evaluation of how video-inspired buffer, segment, and prefetching strategies interact with RAM, browser cache, and OPFS when storing DICOM frames or tiles.
+The literature demonstrates zero-footprint medical-image viewers, DICOMweb interoperability, client-side rendering, caching, prefetching, progressive image streaming, tile-based video adaptation, light-field segment streaming, encrypted web storage, and secure clinical workflows. A working hypothesis is that integrated cybersecurity evidence is still limited for how video-inspired buffer, segment, and prefetching strategies interact with RAM, browser cache, and OPFS when storing DICOM frames or tiles.
 
-> This dissertation addresses that gap by adapting selected streaming concepts—bounded buffers, prediction confidence, priority-based prefetching, cache-aware retrieval, layered client caches, and refresh-versus-new-fetch decisions—to a zero-footprint DICOM viewer, then measuring their effects on both viewer performance and the confidentiality/persistence of cached medical data.
+> Working hypothesis: adapting selected streaming concepts—bounded buffers, prediction confidence, priority-based prefetching, cache-aware retrieval, layered client caches, and refresh-versus-new-fetch decisions—may improve performance while still requiring explicit measurement of confidentiality and persistence risks in DICOM browser caches.

@@ -1,14 +1,19 @@
-# Literature Notes: Caching, Prefetching, and Security
+---
+status: needs-review
+tags: [research, reading-list]
+---
+
+# Reading List
 
 ## Related notes
 
 - [[Zero-Footprint and OPFS]] — definitions of zero-footprint and implications of persistent browser storage.
-- [[Prefetching RAM OPFS]] — sliding-window caching, prefetching, eviction, and OPFS alternatives.
-- [[DICOMweb and Dicoogle]] — backend retrieval path and DICOM object/frame considerations.
-- [[OHIF and Zero-Footprint Viewers]] — reference viewer architecture and deployment meaning of zero-footprint.
-- [[Cornerstone3D Architecture]] — decoding, runtime caching, and rendering pipeline.
-- [[Browser Storage Threat Model]] — storage, XSS, key, and residual-data threats.
-- [[Performance KPI]] — benchmark definitions and the 500 ms target.
+- [[Caching and Prefetching]] — sliding-window caching, prefetching, eviction, and OPFS alternatives.
+- DICOMweb and Dicoogle (pending note) — backend retrieval path and DICOM object/frame considerations.
+- OHIF and Zero-Footprint Viewers (pending note) — reference viewer architecture and deployment meaning of zero-footprint.
+- Cornerstone3D Architecture (pending note) — decoding, runtime caching, and rendering pipeline.
+- [[Threat Model]] — storage, XSS, key, and residual-data threats.
+- [[Performance and Usability]] — benchmark definitions and the 500 ms target.
 
 ## Purpose
 
@@ -247,7 +252,7 @@ QIDO-RS metadata
   → WebGL/GPU
 ```
 
-See [[OHIF and Zero-Footprint Viewers]].
+See OHIF and Zero-Footprint Viewers (pending note).
 
 ## Cornerstone3D
 
@@ -276,7 +281,7 @@ DICOMweb/Dicoogle response
   → rendering
 ```
 
-See [[Cornerstone3D Architecture]].
+See Cornerstone3D Architecture (pending note).
 
 ## LesionTracker
 
@@ -332,7 +337,7 @@ DICOM bytes
   → OPFS ciphertext
 ```
 
-See [[Zero-Footprint and OPFS]] and [[Prefetching RAM OPFS]].
+See [[Zero-Footprint and OPFS]] and [[Caching and Prefetching]].
 
 ## Encrypted web storage
 
@@ -358,7 +363,7 @@ Evaluate encryption together with:
 - Worker boundaries.
 - Session expiration.
 
-See [[Browser Storage Threat Model]] and [[AES-GCM Key Lifecycle]].
+See [[Threat Model]] and [[Key Management]].
 
 ## OWASP browser-storage testing
 
@@ -392,7 +397,7 @@ Network buffer
 
 This motivates bounded working sets, explicit resource cleanup, and documenting browser/OS limitations.
 
-See [[GPU Memory Residue]].
+See GPU Memory Residue (pending note).
 
 ## Web Crypto and AES-GCM
 
@@ -460,7 +465,7 @@ Encrypted OPFS cache
 + cleanup and invalidation
 ```
 
-See [[Prefetching RAM OPFS]].
+See [[Caching and Prefetching]].
 
 ## Literature-based research gap
 
@@ -565,8 +570,8 @@ Secondary question:
 
 ## Connected dissertation concepts
 
-- [[Prefetching RAM OPFS]]
+- [[Caching and Prefetching]]
 - [[Zero-Footprint and OPFS]]
-- [[Performance KPI]]
+- [[Performance and Usability]]
 - [[Threat Model]]
-- [[Cache Benchmark]]
+- Cache Benchmark (pending note; not linked in this vault yet)

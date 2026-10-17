@@ -1,11 +1,16 @@
-# AES-GCM Key Lifecycle
+---
+status: proposed
+tags: [specification, keys]
+---
+
+# Key Management
 
 ## Related notes
 
-- [[Architecture Decisions 2026-10-11]]
+- [[Architecture Decisions]]
 - [[Zero-Footprint and OPFS]]
-- [[Prefetching RAM OPFS]]
-- [[Browser Storage Threat Model]]
+- [[Caching and Prefetching]]
+- [[Threat Model]]
 - [[Security Tests]]
 
 ## Status
