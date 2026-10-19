@@ -12,7 +12,7 @@ sequenceDiagram
     B->>B: Verify current permission and source/key version
     alt User B not authorised
         B-->>U: Deny new DEK access
-        Note over U,O: No decryption by cooperative client; prior copied keys cannot be recalled
+        Note over U,O: No decryption by cooperative client, prior copied keys cannot be recalled
     else User B authorised
         B->>K: Fetch same scoped DEK or current key version
         K-->>B: DEK and key version
@@ -20,11 +20,11 @@ sequenceDiagram
         U->>C: Install volatile key and expected frame context
         U->>O: Read cached ciphertext
         O-->>U: Encrypted entry or miss
-        U->>C: Check scope/version; verify AEAD before decode
+        U->>C: Check scope/version, verify AEAD before decode
         alt Valid current cache hit
             C-->>U: Verified plaintext frame bytes
         else Missing, stale or invalid cache entry
-            C-->>U: Reject candidate; no decoded output
+            C-->>U: Reject candidate, no decoded output
             U->>B: RetrieveFrames with authorised session
             B-->>U: Native frame bytes
             U->>C: Encrypt with fresh nonce and expected-context AAD

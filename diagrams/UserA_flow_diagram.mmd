@@ -10,7 +10,7 @@ sequenceDiagram
     U->>B: Open Study X with existing session token
     B->>B: Check permission and current source/key version
     alt Access denied
-        B-->>U: Deny; no DEK and no frame processing
+        B-->>U: Deny, no DEK and no frame processing
     else Access allowed
         B->>K: Get or create scoped cache DEK and key version
         K-->>B: Scoped DEK
@@ -21,7 +21,7 @@ sequenceDiagram
             O-->>U: Ciphertext, nonce, tag and header
             U->>C: Validate version/context and verify AEAD
             alt Entry invalid or authentication fails
-                C-->>U: Reject; do not decode candidate
+                C-->>U: Reject, do not decode candidate
                 U->>O: Invalidate entry
                 U->>B: Refetch authorised native frame
                 B-->>U: Native frame bytes
