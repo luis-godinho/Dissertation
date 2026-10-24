@@ -21,6 +21,7 @@ This vault documents a cybersecurity master's dissertation on privacy-preserving
 
 - [[Architecture/Architecture Overview|Architecture Overview]]
 - [[Architecture/Architecture Decisions|Architecture Decisions]]
+- [[Research/Implementation Progress and Decision Log|Implementation Progress and Decision Log]]
 - [[Architecture/Caching and Prefetching|Caching and Prefetching]]
 - [[Architecture/Zero-Footprint and OPFS|Zero-Footprint and OPFS]]
 - [[Architecture/Dicoogle Integration|Dicoogle Integration]]
